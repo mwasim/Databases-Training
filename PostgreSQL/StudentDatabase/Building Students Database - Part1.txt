@@ -1,0 +1,143 @@
+# Learn SQL by Building a Student Database: Part 1
+# Log into the psql interactive terminal with psql --username=freecodecamp --dbname=postgres
+>> psql --username=freecodecamp --dbname=postgres
+
+# View the existing databases with the \l
+
+# Create a new database named students.
+>> CREATE DATABASE students;
+
+# Connect to your new database so you can start adding tables.
+>> \c students;
+
+# First, create the students table.
+CREATE TABLE students();
+
+# Create a table named majors.
+CREATE TABLE majors();
+CREATE TABLE courses();
+CREATE TABLE majors_courses();
+
+# Use the display shortcut command to view your tables 
+>> \d;
+
+ALTER TABLE students ADD COLUMN student_id SERIAL PRIMARY KEY;
+ALTER TABLE students ADD COLUMN first_name VARCHAR(50) NOT NULL;
+ALTER TABLE students ADD COLUMN last_name VARCHAR(50) NOT NULL;
+ALTER TABLE students ADD COLUMN major_id INT;
+ALTER TABLE students ADD COLUMN gpa NUMERIC(2,1);
+
+>>\d students;
+
+ALTER TABLE majors ADD COLUMN major_id SERIAL PRIMARY KEY;
+ALTER TABLE majors ADD COLUMN major VARCHAR(50) NOT NULL;
+ALTER TABLE students ADD FOREIGN KEY(major_id) REFERENCES majors(major_id);
+ALTER TABLE courses ADD COLUMN course_id SERIAL PRIMARY KEY;
+
+# You can drop a column with ALTER TABLE <table_name> DROP COLUMN <column_name>; if you want to delete a column and try again
+
+ALTER TABLE courses ADD COLUMN course VARCHAR(100) NOT NULL;
+ALTER TABLE majors_courses ADD COLUMN major_id INT;
+ALTER TABLE majors_courses ADD COLUMN course_id INT;
+
+ALTER TABLE students ADD FOREIGN KEY(major_id) REFERENCES majors(major_id);
+
+ALTER TABLE majors_courses ADD PRIMARY KEY(major_id, course_id);
+
+INSERT INTO majors(major) VALUES('Database Administration');
+SELECT * FROM majors;
+
+INSERT INTO courses(course) VALUES('Data Structures and Algorithms');
+SELECT * FROM courses;
+
+INSERT INTO majors_courses(major_id, course_id) VALUES(1, 1);
+SELECT * FROM majors_courses;
+
+INSERT INTO students(first_name, last_name, major_id, gpa) VALUES('Rhea', 'Kellems', 1, 2.5);
+SELECT * FROM students;
+
+#  Split terminal and Use the touch command to create a file named insert_data.sh in your project folder.
+touch insert_data.sh;
+
+# You should have two terminals open. One connected to PostgreSQL, and one for entering terminal commands. In the one for terminal commands, use the chmod command with the +x flag to give you new script executable permissions.
+chmod +x insert_data.sh;
+
+# #!/bin/bash (Top of the file - shebang)
+
+# single line comment
+# Script to insert data from courses.csv and students.csv into students database.
+# cat is a terminal command for printing the contents of a file.
+# First, you should add all the info from the courses.csv file since you need the major_id for inserting the student info. cat is a terminal command for printing the contents of a file. Here's an example: cat <filename>. Below the comment you added, use it to print courses.csv.
+
+# Run your script to see if the file contents get printed.
+>> camper: /project$ ./insert_data.sh
+
+
+# It worked. Instead of printing the content, you can pipe that output into a while loop so you can go through the rows one at a time. It looks like this:
+# cat courses.csv | while read MAJOR COURSE
+# do
+#   <STATEMENTS>
+# done
+# Each new line will be read into the variables, MAJOR and COURSE. Add the above to your cat command. In the STATEMENTS area, use echo to print the MAJOR variable.
+
+cat courses.csv | while read MAJOR COURSE
+do
+  echo $MAJOR;
+done
+
+
+# Run your script to see if workd.
+>> camper: /project$ ./insert_data.sh
+
+# It's looping, but the MAJOR variable is only being set to the first word. There's a default IFS variable in bash. IFS stands for "Internal Field Separator". View it with declare -p IFS.
+
+declare -p IFS
+
+# Between the while and read commands, set the IFS to a comma like this: IFS=","
+# Now, it should use the comma in the data to separate words instead of spaces. Run the script again to see if it's working.
+>> camper: /project$ ./insert_data.sh
+
+# Looks like that worked. It prints the whole major, including the space. Print the COURSE variable on the same line as where you print MAJOR to make sure it's all working.
+# Delete the echo line so you can figure out what to do next.
+
+# Add these single line comments in your loop in this order: get major_id, if not found, insert major, get new major_id, get course_id, if not found, insert course, get new course_id, insert into majors_courses.
+
+# Above your loop, add a PSQL variable that looks like this: 
+# PSQL="psql -X --username=freecodecamp --dbname=students --no-align --tuples-only -c". 
+# This will allow you to query your database from your script. The important parts are the username, dbname, and the -c flag that is for running a single command and exiting. The rest of the flags are for formatting.
+
+# Now, you can query your database using the PSQL variable like this: $($PSQL "<query_here>"). 
+# get major_id
+  MAJOR_ID=$($PSQL "SELECT major_id FROM majors WHERE major='$MAJOR'")
+  
+#  add an if condition that checks if the MAJOR_ID variable is empty. You can do that with this test: [[ -z $MAJOR_ID ]]. 
+
+ # if not found
+  if [[ -z $MAJOR_ID ]]
+  then
+    # insert major
+    INSERT_MAJOR_RESULT=$($PSQL "INSERT INTO majors(major) VALUES('$MAJOR')")
+    echo $INSERT_MAJOR_RESULT
+    # get new major_id
+  fi
+
+# In the terminal, use the copy (cp) command to copy the courses.csv into a new file named courses_test.csv.
+#Back in the insert_data.sh script, change your cat command to loop through the test file instead of the full one.
+# Run the script.
+>> camper: /project$ ./insert_data.sh
+
+
+#  You can use TRUNCATE to delete all data from a table. In the psql prompt,
+students=> TRUNCATE majors;
+ERROR:  cannot truncate a table referenced in a foreign key constraint
+
+# So if you want to delete the data from majors, you need to delete the data from those two tables at the same time. Use TRUNCATE to delete the data from those three tables. Separate the tables with commas.
+
+>> TRUNCATE majors, students, majors_courses;
+
+# There should still be one entry in there. Use TRUNCATE to delete all the data from the courses table. You will need to truncate any tables that use a column from it as a foreign key at the same time.
+students=> TRUNCATE courses, majors_courses;
+
+# You won't want to add the first line from the CSV file to the database since those are just titles. In your script, add an if condition at the top of your loop that checks if $MAJOR != major. 
+# In the psql prompt, use TRUNCATE to delete all the data
+>> TRUNCATE majors, students, majors_courses;
